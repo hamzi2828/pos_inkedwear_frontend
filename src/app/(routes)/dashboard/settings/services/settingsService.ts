@@ -20,6 +20,7 @@ interface SettingsData {
   taxes: TaxType[];
   currency: CurrencyCode;
   siteUrl: string;
+  posUrl: string;
   logoUrl: string;
   timezone: string;
   dateFormat: string;

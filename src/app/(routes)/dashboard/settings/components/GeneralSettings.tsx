@@ -16,6 +16,7 @@ export default function GeneralSettings({ settings, onUpdate, isLoading }: Gener
   const [formData, setFormData] = useState({
     siteName: settings?.siteName || 'Inked Wear',
     siteUrl: settings?.siteUrl || 'https://inkedwear.com',
+    posUrl: settings?.posUrl || '',
     currency: 'Rs',
   });
 
@@ -60,6 +61,18 @@ export default function GeneralSettings({ settings, onUpdate, isLoading }: Gener
                 placeholder="https://your-site.com"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="posUrl">External POS Link</Label>
+              <Input
+                id="posUrl"
+                type="url"
+                value={formData.posUrl}
+                onChange={(e) => handleChange('posUrl', e.target.value)}
+                placeholder="https://your-pos.vercel.app"
+              />
+              <p className="text-sm text-muted-foreground">Link to your POS system (optional)</p>
             </div>
 
             <div className="space-y-2">
