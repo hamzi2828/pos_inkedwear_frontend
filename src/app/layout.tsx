@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Inked Wear",
+  title: "Inked Wear",  
   description: "",
-};
+};   
 
 export default function RootLayout({
   children,
