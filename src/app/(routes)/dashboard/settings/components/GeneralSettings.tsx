@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,18 @@ export default function GeneralSettings({ settings, onUpdate, isLoading }: Gener
     posUrl: settings?.posUrl || '',
     currency: 'Rs',
   });
+
+  // Sync form data when settings prop changes
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        siteName: settings.siteName || 'Inked Wear',
+        siteUrl: settings.siteUrl || 'https://inkedwear.com',
+        posUrl: settings.posUrl || '',
+        currency: 'Rs',
+      });
+    }
+  }, [settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
