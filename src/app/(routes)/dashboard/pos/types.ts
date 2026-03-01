@@ -449,6 +449,9 @@ export interface CreateDTFOrderData {
   subtotal?: number;
   tax?: number;
   total?: number;
+  // Partial payment fields
+  isPartialPayment?: boolean;
+  paidAmount?: number;
 }
 
 export interface GetDTFOrdersResponse {

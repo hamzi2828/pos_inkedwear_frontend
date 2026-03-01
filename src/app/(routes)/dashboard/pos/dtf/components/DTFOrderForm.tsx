@@ -95,10 +95,6 @@ export default function DTFOrderForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank_transfer'>('cash');
-  const [cashAmount, setCashAmount] = useState<number>(0);
-
-  // Partial payment state
-  const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [paidAmount, setPaidAmount] = useState<number>(0);
 
   // Bank transfer screenshot
@@ -250,8 +246,12 @@ export default function DTFOrderForm({
 
     const effectiveTotal = availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : (pricing?.total || 0);
 
-    if (paymentMethod === 'cash' && pricing && cashAmount < effectiveTotal) {
-      setError('Cash amount must be at least the total amount');
+    // Auto-detect partial payment based on paid amount vs total
+    const isPartialPayment = paidAmount > 0 && paidAmount < effectiveTotal;
+
+    // Validate payment amount
+    if (paidAmount <= 0) {
+      setError('Please enter the amount customer is paying');
       return;
     }
 
@@ -267,9 +267,10 @@ export default function DTFOrderForm({
       setSubmitting(true);
       setError(null);
 
-      // Upload bank transfer screenshot if selected
+      // Upload bank transfer screenshot if selected (required only for full bank transfer payments)
       let screenshotUrl = bankScreenshot;
-      if (paymentMethod === 'bank_transfer') {
+      const isFullBankPayment = paymentMethod === 'bank_transfer' && paidAmount >= effectiveTotal;
+      if (isFullBankPayment) {
         if (!bankScreenshot && !bankScreenshotFile) {
           setError('Please select bank transfer screenshot');
           setSubmitting(false);
@@ -331,20 +332,32 @@ export default function DTFOrderForm({
           artworks: artworksData.length > 0 ? artworksData : undefined,
         },
         paymentMethod,
-        cashAmount: paymentMethod === 'cash' ? cashAmount : undefined,
-        bankTransferScreenshot: paymentMethod === 'bank_transfer' ? screenshotUrl || undefined : undefined,
+        cashAmount: paymentMethod === 'cash' && !isPartialPayment ? paidAmount : undefined,
+        bankTransferScreenshot: isFullBankPayment ? screenshotUrl || undefined : undefined,
         subtotal: pricing?.subtotal,
         tax: effectiveTax,
         total: effectiveTotalValue,
+        // Partial payment fields
+        isPartialPayment,
+        paidAmount: isPartialPayment ? paidAmount : undefined,
       });
+
+      // Show success message with payment details
+      const wasPartialPayment = isPartialPayment && paidAmount > 0;
+      const pendingAmountValue = wasPartialPayment ? effectiveTotalValue - paidAmount : 0;
 
       // Reset form
       setFormData(initialFormData);
       setArtworkItems([]);
       setPricing(null);
-      setCashAmount(0);
+      setPaidAmount(0);
       setBankScreenshot(null);
       setBankScreenshotFile(null);
+
+      // Show appropriate message
+      if (wasPartialPayment) {
+        alert(`Order ${order.orderNumber} created with partial payment!\n\nPaid: ${formatCurrency(paidAmount, currency)}\nPending: ${formatCurrency(pendingAmountValue, currency)}\n\nView pending payments in POS > Pending Payments`);
+      }
 
       onOrderCreated(order.orderNumber);
     } catch (err) {
@@ -781,228 +794,219 @@ export default function DTFOrderForm({
           </div>
 
           {/* Payment Method */}
-          {pricing && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-4">Payment Method</h3>
+          {pricing && (() => {
+            const effectiveTotal = availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total;
+            const isPartialPayment = paidAmount > 0 && paidAmount < effectiveTotal;
+            const pendingAmount = isPartialPayment ? effectiveTotal - paidAmount : 0;
+            const isFullPayment = paidAmount >= effectiveTotal;
 
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <button
-                  onClick={() => setPaymentMethod('cash')}
-                  className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium ${
-                    paymentMethod === 'cash'
-                      ? 'bg-green-600 text-white border-green-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  Cash
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('card')}
-                  className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium ${
-                    paymentMethod === 'card'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  Card
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('bank_transfer')}
-                  className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium flex items-center justify-center gap-1 ${
-                    paymentMethod === 'bank_transfer'
-                      ? 'bg-purple-600 text-white border-purple-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <Building2 className="h-4 w-4" />
-                  Bank
-                </button>
-              </div>
+            return (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-4">Payment</h3>
 
-              {/* Partial Payment Toggle */}
-              <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isPartialPayment}
-                    onChange={e => {
-                      setIsPartialPayment(e.target.checked);
-                      if (!e.target.checked) {
-                        setPaidAmount(0);
-                      }
-                    }}
-                    className="w-4 h-4 text-orange-600 rounded"
-                  />
-                  <span className="text-sm font-medium text-orange-800">
-                    Partial Payment (Customer will pay remaining later)
-                  </span>
-                </label>
-              </div>
+                {/* Payment Method Buttons */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium ${
+                      paymentMethod === 'cash'
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium ${
+                      paymentMethod === 'card'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Card
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('bank_transfer')}
+                    className={`px-3 py-3 rounded-lg border transition-colors text-sm font-medium flex items-center justify-center gap-1 ${
+                      paymentMethod === 'bank_transfer'
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Bank
+                  </button>
+                </div>
 
-              {/* Partial Payment Amount */}
-              {isPartialPayment && (
-                <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <label className="block text-sm font-medium text-orange-800 mb-2">
-                    Amount Paying Now
+                {/* Amount Paying */}
+                <div className={`p-3 rounded-lg border ${isPartialPayment ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <label className={`block text-sm font-medium mb-2 ${isPartialPayment ? 'text-orange-800' : 'text-gray-700'}`}>
+                    Amount Paying
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    max={availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total}
                     value={paidAmount || ''}
                     onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    placeholder="Enter amount customer is paying now"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 ${
+                      isPartialPayment
+                        ? 'border-orange-300 focus:ring-orange-500'
+                        : 'border-gray-300 focus:ring-[#dc2626]'
+                    }`}
+                    placeholder={`Total: ${formatCurrency(effectiveTotal, currency)}`}
                   />
-                  {paidAmount > 0 && (
-                    <div className="mt-2 text-sm">
-                      <p className="text-orange-700">
-                        Paying: {formatCurrency(paidAmount, currency)}
-                      </p>
-                      <p className="text-red-600 font-medium">
-                        Pending: {formatCurrency((availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total) - paidAmount, currency)}
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-2">
-                    {[500, 1000, 2000].map(amount => (
+
+                  {/* Quick Amount Buttons */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[500, 1000, 2000, 5000].map(amount => (
                       <button
                         key={amount}
                         onClick={() => setPaidAmount(amount)}
-                        className="px-3 py-1 text-sm bg-orange-200 rounded hover:bg-orange-300"
+                        className={`px-3 py-1 text-sm rounded ${
+                          isPartialPayment ? 'bg-orange-200 hover:bg-orange-300' : 'bg-gray-200 hover:bg-gray-300'
+                        }`}
                       >
                         {currencySymbol}{amount}
                       </button>
                     ))}
                     <button
-                      onClick={() => setPaidAmount(Math.floor((availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total) / 2))}
-                      className="px-3 py-1 text-sm bg-orange-300 text-orange-800 rounded hover:bg-orange-400"
-                    >
-                      50%
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'cash' && !isPartialPayment && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cash Received
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total}
-                    value={cashAmount || ''}
-                    onChange={e => setCashAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#dc2626]"
-                    placeholder={`Min: ${formatCurrency(availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total, currency)}`}
-                  />
-                  {cashAmount >= (availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total) && (
-                    <p className="text-sm text-green-600 mt-1">
-                      Change: {formatCurrency(cashAmount - (availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total), currency)}
-                    </p>
-                  )}
-
-                  <div className="flex gap-2 mt-2">
-                    {[100, 500, 1000].map(amount => (
-                      <button
-                        key={amount}
-                        onClick={() => setCashAmount(amount)}
-                        className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        {currencySymbol}{amount}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setCashAmount(Math.ceil(availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total))}
+                      onClick={() => setPaidAmount(Math.ceil(effectiveTotal))}
                       className="px-3 py-1 text-sm bg-[#dc2626]/10 text-[#dc2626] rounded hover:bg-[#dc2626]/20"
                     >
-                      Exact
+                      Full Amount
                     </button>
                   </div>
-                </div>
-              )}
 
-              {paymentMethod === 'bank_transfer' && !isPartialPayment && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Image className="h-4 w-4 inline mr-1" />
-                    Transfer Screenshot *
-                  </label>
-
-                  {bankScreenshot ? (
-                    <div className="border border-green-200 bg-green-50 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Check className="h-5 w-5 text-green-500" />
-                          <span className="text-sm text-green-700">Screenshot uploaded</span>
+                  {/* Payment Status Display */}
+                  {paidAmount > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      {isFullPayment ? (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-green-600 font-medium">Full Payment</span>
+                          {paidAmount > effectiveTotal && (
+                            <span className="text-sm text-green-600">
+                              Change: {formatCurrency(paidAmount - effectiveTotal, currency)}
+                            </span>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBankScreenshot(null);
-                            setBankScreenshotFile(null);
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-green-600">Paying Now:</span>
+                            <span className="text-green-600 font-medium">{formatCurrency(paidAmount, currency)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-orange-600">Pending:</span>
+                            <span className="text-orange-600 font-medium">{formatCurrency(pendingAmount, currency)}</span>
+                          </div>
+                          <p className="text-xs text-orange-500 mt-1">
+                            Will appear in POS → Pending Payments
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  ) : bankScreenshotFile ? (
-                    <div className="border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">{bankScreenshotFile.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => setBankScreenshotFile(null)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer block">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleScreenshotSelect(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
-                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-4 text-center hover:border-purple-400 transition-colors">
-                        <Upload className="h-6 w-6 mx-auto text-purple-400 mb-2" />
-                        <p className="text-sm text-purple-600">Click to select screenshot</p>
-                        <p className="text-xs text-gray-400">PNG, JPG (max 10MB)</p>
-                      </div>
-                    </label>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Bank Transfer Screenshot - only for full payment */}
+                {paymentMethod === 'bank_transfer' && isFullPayment && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Image className="h-4 w-4 inline mr-1" />
+                      Transfer Screenshot
+                    </label>
+
+                    {bankScreenshot ? (
+                      <div className="border border-green-200 bg-green-50 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Check className="h-5 w-5 text-green-500" />
+                            <span className="text-sm text-green-700">Screenshot uploaded</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBankScreenshot(null);
+                              setBankScreenshotFile(null);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : bankScreenshotFile ? (
+                      <div className="border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">{bankScreenshotFile.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setBankScreenshotFile(null)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleScreenshotSelect(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                        <div className="border-2 border-dashed border-purple-300 rounded-lg p-4 text-center hover:border-purple-400 transition-colors">
+                          <Upload className="h-6 w-6 mx-auto text-purple-400 mb-2" />
+                          <p className="text-sm text-purple-600">Click to select screenshot</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Submit Button */}
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !pricing || !formData.mirroredConfirmed}
-            className="w-full py-4 bg-[#dc2626] text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Creating Order...
-              </>
-            ) : (
-              <>
-                <Check className="h-5 w-5" />
-                Create DTF Order
-                {pricing && ` - ${formatCurrency(availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total, currency)}`}
-              </>
-            )}
-          </button>
+          {(() => {
+            const effectiveTotal = pricing ? (availableTaxes.length > 0 && onTaxSelectionChange ? customTotal : pricing.total) : 0;
+            const isPartialPayment = paidAmount > 0 && paidAmount < effectiveTotal;
+
+            return (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !pricing || !formData.mirroredConfirmed || paidAmount <= 0}
+                className={`w-full py-4 text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 ${
+                  isPartialPayment ? 'bg-orange-600 hover:bg-orange-700' : 'bg-[#dc2626] hover:bg-red-700'
+                }`}
+              >
+                {submitting ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Creating Order...</span>
+                  </div>
+                ) : isPartialPayment ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5" />
+                      <span>Create DTF Order (Partial Payment)</span>
+                    </div>
+                    <span className="text-sm opacity-90">
+                      Paying {formatCurrency(paidAmount, currency)} | Pending {formatCurrency(effectiveTotal - paidAmount, currency)}
+                    </span>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Check className="h-5 w-5" />
+                    <span>Create DTF Order{pricing && ` - ${formatCurrency(effectiveTotal, currency)}`}</span>
+                  </div>
+                )}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>

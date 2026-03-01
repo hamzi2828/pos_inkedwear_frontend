@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { POSOrder, PaymentMethodType, PaymentHistoryEntry } from '../types';
 import { getPendingOrders, addPaymentToOrder } from '../services/posOrderService';
 import { getCurrencySymbol } from '@/helper/helper';
-import { Clock, User, CreditCard, Banknote, Building2, X, Loader2, Check, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Receipt, Calendar, MessageSquare } from 'lucide-react';
+import { Clock, User, CreditCard, Banknote, Building2, X, Loader2, Check, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Receipt, Calendar, MessageSquare, Layers } from 'lucide-react';
 
 interface PendingPaymentsTabProps {
   currency?: string;
@@ -211,6 +211,12 @@ export default function PendingPaymentsTab({
                     <span className="font-mono text-sm font-semibold text-gray-900">
                       {order.orderNumber}
                     </span>
+                    {order.orderType === 'dtf' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                        <Layers className="h-3 w-3" />
+                        DTF
+                      </span>
+                    )}
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       order.paymentStatus === 'partial'
                         ? 'bg-yellow-100 text-yellow-700'
@@ -219,6 +225,11 @@ export default function PendingPaymentsTab({
                       {order.paymentStatus === 'partial' ? 'Partial' : 'Pending'}
                     </span>
                   </div>
+                  {order.orderType === 'dtf' && order.dtfDetails?.jobName && (
+                    <div className="text-xs text-purple-600 font-medium mt-0.5">
+                      {order.dtfDetails.jobName}
+                    </div>
+                  )}
                   {order.customer && (
                     <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
                       <User className="h-3 w-3" />
