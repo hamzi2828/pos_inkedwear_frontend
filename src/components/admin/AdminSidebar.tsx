@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FiHome, FiUsers, FiPackage, FiSettings, FiCreditCard, FiShield, FiUserCheck, FiTruck, FiFileText, FiCalendar, FiBriefcase, FiDollarSign, FiPieChart } from 'react-icons/fi';
-import { Building2, Receipt, ShoppingBag, HandCoins, ShoppingCart } from 'lucide-react';
+import { Building2, Receipt, ShoppingBag, HandCoins, ShoppingCart, Printer } from 'lucide-react';
 
 // Custom PKR icon component
 const PkrIcon = ({ className }: { className?: string }) => (
@@ -68,6 +68,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       label: 'Sales & Operations',
       items: [
         { name: 'POS', path: '/dashboard/pos', icon: <FiCreditCard className="w-5 h-5" />, permission: 'POS' },
+        { name: 'DTF Printing', path: '/dashboard/pos/dtf', icon: <Printer className="w-5 h-5" />, permission: 'POS' },
         { name: 'Sales', path: '/dashboard/sales', icon: <PkrIcon className="w-5 h-5" />, permission: 'Sales' },
         { name: 'Products', path: '/dashboard/products', icon: <FiPackage className="w-5 h-5" />, permission: 'Products' },
         { name: 'Expenses', path: '/dashboard/expenses', icon: <FiFileText className="w-5 h-5" />, permission: 'Expenses' },
@@ -166,8 +167,13 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 {group.label}
               </p>
               {group.items.map((item) => {
+                // Check for exact match first, then startsWith but exclude if a more specific path exists
+                const allPaths = menuGroups.flatMap(g => g.items.map(i => i.path));
+                const hasMoreSpecificMatch = allPaths.some(
+                  p => p !== item.path && p.startsWith(item.path) && pathname.startsWith(p)
+                );
                 const isActive = pathname === item.path ||
-                  (item.path !== '/dashboard' && pathname.startsWith(item.path));
+                  (item.path !== '/dashboard' && pathname.startsWith(item.path) && !hasMoreSpecificMatch);
                 return (
                   <Link
                     key={item.path}

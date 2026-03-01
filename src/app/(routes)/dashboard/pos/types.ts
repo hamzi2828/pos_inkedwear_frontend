@@ -191,6 +191,7 @@ export interface POSOrderData {
 export interface POSOrder {
   _id: string;
   orderNumber: string;
+  orderType?: 'standard' | 'dtf'; // Order type - standard retail or DTF printing
   items: POSOrderItem[];
   customer?: POSCustomer;
   customerInfo?: CustomerInfo; // Customer info stored at time of order
@@ -219,6 +220,8 @@ export interface POSOrder {
   orderStatus: string;
   paymentStatus: PaymentStatusType;
   completedAt?: string;
+  // DTF specific fields (populated when orderType is 'dtf')
+  dtfDetails?: DTFOrderDetails;
 }
 
 // Pending Orders Response
@@ -294,5 +297,177 @@ export interface GetOrdersResponse {
     limit: number;
   };
   message?: string;
+}
+
+// ==================== DTF Types ====================
+
+export type DTFSheetType = 'A3' | 'A4';
+export type DTFFilmType = 'standard' | 'glitter' | 'reflective' | 'glow-in-dark';
+export type DTFInkConfig = 'standard' | 'fluorescent';
+export type DTFGarmentType = 'cotton' | 'polyester' | 'blend';
+export type DTFGarmentColor = 'light' | 'dark';
+export type DTFProductionStatus =
+  | 'artwork_review'
+  | 'printing'
+  | 'curing'
+  | 'ready'
+  | 'shipped'
+  | 'picked_up';
+
+export interface DTFArtwork {
+  originalFilename: string;
+  blobUrl: string;
+  fileType: string;
+  fileSizeBytes?: number;
+  dimensions: {
+    width: number;
+    height: number;
+    dpi: number;
+    isValidDpi: boolean;
+  };
+  colorProfile: 'RGB' | 'CMYK';
+}
+
+// Artwork item with custom name for multiple file uploads
+export interface DTFArtworkItem {
+  id: string; // Unique ID for tracking in UI
+  customName: string; // User-provided name for the artwork
+  file?: File; // Original file (before upload)
+  artwork?: DTFArtwork; // Uploaded artwork data
+  uploading?: boolean; // Upload status
+  error?: string; // Upload error message
+  pixelWidth?: number; // Image width in pixels
+  pixelHeight?: number; // Image height in pixels
+  calculatedDpi?: number; // Calculated DPI based on print dimensions
+}
+
+export interface DTFStatusHistoryItem {
+  status: DTFProductionStatus;
+  timestamp: string;
+  updatedBy?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  notes?: string;
+}
+
+export interface DTFOrderDetails {
+  jobName: string;
+  artwork?: DTFArtwork; // Legacy single artwork
+  artworks?: Array<{ customName: string; artwork: DTFArtwork }>; // Multiple artworks with names
+  sheetType: DTFSheetType;
+  filmType: DTFFilmType;
+  inkConfiguration: DTFInkConfig;
+  garmentType: DTFGarmentType;
+  garmentColor: DTFGarmentColor;
+  quantity: number;
+  backgroundRemovalRequired: boolean;
+  mirroredConfirmed: boolean;
+  pricePerSquareInch?: number;
+  squareInches?: number;
+  basePrice?: number;
+  setupFee?: number;
+  rushFee?: number;
+  isRushOrder: boolean;
+  unitPrice?: number;
+  dueDate?: string;
+  productionStatus?: DTFProductionStatus;
+  statusHistory?: DTFStatusHistoryItem[];
+}
+
+export interface DTFPricingResult {
+  squareInches: number;
+  pricePerSquareInch: number;
+  unitPrice: number;
+  basePrice: number;
+  setupFee: number;
+  rushFee: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  taxRate: number;
+  rushFeePercentage: number;
+  backgroundRemovalFee: number;
+  breakdown: {
+    filmTypeMultiplier: number;
+    inkMultiplier: number;
+    quantity: number;
+    isRushOrder: boolean;
+    backgroundRemovalRequired: boolean;
+  };
+}
+
+export interface DTFPricingConfig {
+  baseRatePerSquareInch: number;
+  filmTypeMultipliers: Record<DTFFilmType, number>;
+  inkConfigMultipliers: Record<DTFInkConfig, number>;
+  setupFee: {
+    backgroundRemoval: number;
+    artworkPrep: number;
+  };
+  rushFeePercentage: number;
+  minimumOrder: number;
+  taxRate: number;
+}
+
+export interface DTFOrder extends POSOrder {
+  orderType: 'dtf';
+  dtfDetails: DTFOrderDetails;
+}
+
+export interface DTFOrderFormData {
+  jobName: string;
+  artwork?: DTFArtwork; // Legacy single artwork
+  artworks?: Array<{ customName: string; artwork: DTFArtwork }>; // Multiple artworks with names
+  sheetType: DTFSheetType;
+  filmType: DTFFilmType;
+  inkConfiguration: DTFInkConfig;
+  garmentType: DTFGarmentType;
+  garmentColor: DTFGarmentColor;
+  quantity: number;
+  backgroundRemovalRequired: boolean;
+  mirroredConfirmed: boolean;
+  isRushOrder: boolean;
+  dueDate?: string;
+  dimensions: {
+    width: number;
+    height: number;
+    dpi: number;
+    colorProfile: 'RGB' | 'CMYK';
+  };
+}
+
+export interface CreateDTFOrderData {
+  customer?: string;
+  dtfDetails: DTFOrderFormData;
+  paymentMethod: 'cash' | 'card' | 'bank_transfer';
+  cashAmount?: number;
+  bankTransferScreenshot?: string; // URL of uploaded screenshot
+  notes?: string;
+  // Tax override fields (when using custom tax selection)
+  subtotal?: number;
+  tax?: number;
+  total?: number;
+}
+
+export interface GetDTFOrdersResponse {
+  success: boolean;
+  data: DTFOrder[];
+  pagination?: {
+    total: number;
+    page: number;
+    pages: number;
+    limit: number;
+  };
+}
+
+export interface DTFOrdersByStatus {
+  artwork_review: DTFOrder[];
+  printing: DTFOrder[];
+  curing: DTFOrder[];
+  ready: DTFOrder[];
+  shipped: DTFOrder[];
+  picked_up: DTFOrder[];
 }
 

@@ -2,19 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Car, User, MapPin, FileText, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, User, MapPin, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { customerService } from '../../service/customerService';
-import { carBrandService, type CarBrand } from '../../service/carBrandService';
-import type { UpdateCustomerData, Customer, CarDetails, CustomerType, CustomerSource } from '../../types';
-import Combobox from '../../components/Combobox';
-
-interface CarFormData {
-  id: string;
-  brand: string;
-  model: string;
-  numberPlate: string;
-}
+import type { UpdateCustomerData, Customer, CustomerType, CustomerSource } from '../../types';
 
 export default function EditCustomerPage() {
   const router = useRouter();
@@ -36,15 +27,6 @@ export default function EditCustomerPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
-  // Car Details - now an array
-  const [cars, setCars] = useState<CarFormData[]>([
-    { id: crypto.randomUUID(), brand: '', model: '', numberPlate: '' }
-  ]);
-
-  // Car brands data
-  const [carBrands, setCarBrands] = useState<CarBrand[]>([]);
-  const [brandOptions, setBrandOptions] = useState<string[]>([]);
-
   // Address
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
@@ -61,20 +43,6 @@ export default function EditCustomerPage() {
   // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch car brands on mount
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const brands = await carBrandService.getAllBrands();
-        setCarBrands(brands);
-        setBrandOptions(brands.map((b) => b.name));
-      } catch (err) {
-        console.error('Error fetching car brands:', err);
-      }
-    };
-    fetchBrands();
-  }, []);
 
   // Fetch customer data on mount
   useEffect(() => {
@@ -96,28 +64,6 @@ export default function EditCustomerPage() {
         setLastName(customer.lastName || '');
         setEmail(customer.email || '');
         setPhone(customer.phone || '');
-
-        // Car details - handle both single car and array of cars
-        if (customer.carDetails) {
-          if (Array.isArray(customer.carDetails)) {
-            // Multiple cars
-            const carsData: CarFormData[] = customer.carDetails.map((car: CarDetails) => ({
-              id: crypto.randomUUID(),
-              brand: car.brand || '',
-              model: car.model || '',
-              numberPlate: car.numberPlate || '',
-            }));
-            setCars(carsData.length > 0 ? carsData : [{ id: crypto.randomUUID(), brand: '', model: '', numberPlate: '' }]);
-          } else {
-            // Single car (legacy format)
-            setCars([{
-              id: crypto.randomUUID(),
-              brand: customer.carDetails.brand || '',
-              model: customer.carDetails.model || '',
-              numberPlate: customer.carDetails.numberPlate || '',
-            }]);
-          }
-        }
 
         // Address
         setStreet(customer.address?.street || '');
@@ -142,45 +88,6 @@ export default function EditCustomerPage() {
     }
   }, [customerId]);
 
-  // Get model options for a specific brand
-  const getModelOptions = (brand: string): string[] => {
-    if (!brand) return [];
-    const selectedBrand = carBrands.find(
-      (b) => b.name.toLowerCase() === brand.toLowerCase()
-    );
-    return selectedBrand ? selectedBrand.models : [];
-  };
-
-  // Handle car field changes
-  const handleCarChange = (carId: string, field: keyof CarFormData, value: string) => {
-    setCars(prevCars =>
-      prevCars.map(car => {
-        if (car.id !== carId) return car;
-
-        // If brand changes, reset model
-        if (field === 'brand') {
-          return { ...car, brand: value, model: '' };
-        }
-
-        return { ...car, [field]: value };
-      })
-    );
-  };
-
-  // Add new car
-  const addCar = () => {
-    setCars(prevCars => [
-      ...prevCars,
-      { id: crypto.randomUUID(), brand: '', model: '', numberPlate: '' }
-    ]);
-  };
-
-  // Remove car
-  const removeCar = (carId: string) => {
-    if (cars.length <= 1) return; // Keep at least one car
-    setCars(prevCars => prevCars.filter(car => car.id !== carId));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -199,32 +106,8 @@ export default function EditCustomerPage() {
       return;
     }
 
-    // Validate all cars
-    for (let i = 0; i < cars.length; i++) {
-      const car = cars[i];
-      if (!car.brand.trim()) {
-        setError(`Car ${i + 1}: Brand is required`);
-        return;
-      }
-      if (!car.model.trim()) {
-        setError(`Car ${i + 1}: Model is required`);
-        return;
-      }
-      if (!car.numberPlate.trim()) {
-        setError(`Car ${i + 1}: Number plate is required`);
-        return;
-      }
-    }
-
     setLoading(true);
     try {
-      // Prepare car details array
-      const carDetailsArray: CarDetails[] = cars.map(car => ({
-        brand: car.brand.trim(),
-        model: car.model.trim(),
-        numberPlate: car.numberPlate.trim(),
-      }));
-
       const customerData: UpdateCustomerData = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -237,7 +120,6 @@ export default function EditCustomerPage() {
           zipCode: zipCode.trim(),
           country: country.trim(),
         },
-        carDetails: carDetailsArray,
         notes: notes.trim() || undefined,
         isActive,
         customerType,
@@ -307,7 +189,7 @@ export default function EditCustomerPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Edit Customer</h1>
-          <p className="mt-1 text-sm text-gray-500">Update customer information and vehicle details</p>
+          <p className="mt-1 text-sm text-gray-500">Update customer information</p>
         </div>
       </div>
 
@@ -445,83 +327,6 @@ export default function EditCustomerPage() {
                 disabled={loading}
               />
             </div>
-          </div>
-        </div>
-
-        {/* Car Details */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Car className="h-5 w-5 text-[#dc2626]" />
-              <h2 className="text-lg font-semibold text-gray-900">Car Details</h2>
-              <span className="text-sm text-gray-500">({cars.length} {cars.length === 1 ? 'vehicle' : 'vehicles'})</span>
-            </div>
-            <button
-              type="button"
-              onClick={addCar}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#dc2626] bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add Car
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {cars.map((car, index) => (
-              <div
-                key={car.id}
-                className={`p-4 rounded-lg border ${cars.length > 1 ? 'border-gray-200 bg-gray-50' : 'border-transparent'}`}
-              >
-                {cars.length > 1 && (
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700">Car {index + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeCar(car.id)}
-                      disabled={loading}
-                      className="flex items-center gap-1 px-2 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Remove
-                    </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Combobox
-                    label="Brand"
-                    required
-                    value={car.brand}
-                    onChange={(value) => handleCarChange(car.id, 'brand', value)}
-                    options={brandOptions}
-                    placeholder="Select or type brand..."
-                    disabled={loading}
-                  />
-                  <Combobox
-                    label="Model"
-                    required
-                    value={car.model}
-                    onChange={(value) => handleCarChange(car.id, 'model', value)}
-                    options={getModelOptions(car.brand)}
-                    placeholder={car.brand ? 'Select or type model...' : 'Select brand first...'}
-                    disabled={loading || !car.brand}
-                  />
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Number Plate <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={car.numberPlate}
-                      onChange={(e) => handleCarChange(car.id, 'numberPlate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#dc2626] focus:border-transparent"
-                      placeholder="ABC-1234"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { POSCustomer, POSCarDetails } from '../types';
-import { Search, X, User, Car } from 'lucide-react';
+import { POSCustomer } from '../types';
+import { Search, X, User } from 'lucide-react';
 import { searchCustomers, getAllCustomers } from '../services/posCustomerService';
 
 interface CustomerSelectorProps {
@@ -12,13 +12,6 @@ interface CustomerSelectorProps {
   onSelect: (customer: POSCustomer | null) => void;
   currentCustomer?: POSCustomer | null;
 }
-
-// Helper to get cars array
-const getCarsArray = (carDetails?: POSCarDetails | POSCarDetails[]): POSCarDetails[] => {
-  if (!carDetails) return [];
-  if (Array.isArray(carDetails)) return carDetails;
-  return [carDetails];
-};
 
 export default function CustomerSelector({
   isOpen,
@@ -97,7 +90,7 @@ export default function CustomerSelector({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, phone, car brand, model, or plate number..."
+              placeholder="Search by name, phone, or email..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#dc2626] focus:border-transparent"
               autoFocus
             />
@@ -163,27 +156,6 @@ export default function CustomerSelector({
                       <div className="font-semibold text-gray-900">
                         {customer.firstName} {customer.lastName}
                       </div>
-                      {(() => {
-                        const cars = getCarsArray(customer.carDetails);
-                        if (cars.length === 0) return null;
-                        return (
-                          <div className="space-y-0.5 mt-1">
-                            {cars.map((car, index) => (
-                              <div key={index} className="flex items-center gap-1 text-sm text-[#dc2626] font-medium">
-                                <Car className="h-3.5 w-3.5 flex-shrink-0" />
-                                <span>
-                                  {car.brand} {car.model}
-                                  {car.numberPlate && (
-                                    <span className="ml-2 px-1.5 py-0.5 bg-gray-100 rounded text-xs text-gray-700">
-                                      {car.numberPlate}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
                       <div className="flex items-center gap-3 text-sm text-gray-500">
                         {customer.phone && (
                           <span>{customer.phone}</span>

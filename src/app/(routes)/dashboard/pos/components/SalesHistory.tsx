@@ -2,7 +2,7 @@
 'use client';
 
 import { POSOrder } from '../types';
-import { Receipt, Clock, Eye, Image, Printer } from 'lucide-react';
+import { Receipt, Clock, Eye, Image, Printer, Layers } from 'lucide-react';
 import { getCurrencySymbol } from '@/helper/helper';
 
 interface SalesHistoryProps {
@@ -317,12 +317,25 @@ export default function SalesHistory({ orders, onViewReceipt, showDate = false, 
         >
           <div className="flex items-start justify-between mb-2">
             <div>
-              <div className="font-semibold text-gray-900">
-                Order #{order.orderNumber}
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-900">
+                  Order #{order.orderNumber}
+                </span>
+                {order.orderType === 'dtf' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    <Layers className="h-3 w-3" />
+                    DTF
+                  </span>
+                )}
               </div>
               <div className="text-xs text-blue-600 font-medium">
                 Invoice: {order.orderNumber}
               </div>
+              {order.orderType === 'dtf' && order.dtfDetails?.jobName && (
+                <div className="text-xs text-purple-600 font-medium">
+                  {order.dtfDetails.jobName}
+                </div>
+              )}
               <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                 <Clock className="h-3 w-3" />
                 <span>{formatTime(order.createdAt)}</span>

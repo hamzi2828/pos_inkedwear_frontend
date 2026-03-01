@@ -2,17 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-import { POSCart, POSCustomer, POSTax, POSCarDetails } from '../types';
+import { POSCart, POSCustomer, POSTax } from '../types';
 import CartItem from './CartItem';
-import { ShoppingCart, Trash2, Archive, ChevronDown, Check, Receipt, Car, Percent, X, Wrench } from 'lucide-react';
+import { ShoppingCart, Trash2, Archive, ChevronDown, Check, Receipt, Percent, X, Wrench } from 'lucide-react';
 import { getCurrencySymbol } from '@/helper/helper';
-
-// Helper to get cars array
-const getCarsArray = (carDetails?: POSCarDetails | POSCarDetails[]): POSCarDetails[] => {
-  if (!carDetails) return [];
-  if (Array.isArray(carDetails)) return carDetails;
-  return [carDetails];
-};
 
 interface CartPanelProps {
   cart: POSCart;
@@ -105,26 +98,6 @@ export default function CartPanel({
               ? `${customer.firstName} ${customer.lastName}`
               : 'Walk-in Customer (Guest)'}
           </div>
-          {(() => {
-            if (!customer) return null;
-            const cars = getCarsArray(customer.carDetails);
-            if (cars.length === 0) return null;
-            return (
-              <div className="space-y-0.5 mt-1">
-                {cars.map((car, index) => (
-                  <div key={index} className="flex items-center gap-1 text-xs text-[#dc2626]">
-                    <Car className="h-3 w-3 flex-shrink-0" />
-                    <span>
-                      {car.brand} {car.model}
-                      {car.numberPlate && (
-                        <span className="ml-1 text-gray-600">({car.numberPlate})</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
           {customer?.phone && (
             <div className="text-xs text-gray-500 mt-0.5">{customer.phone}</div>
           )}
