@@ -70,7 +70,6 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         { name: 'POS', path: '/dashboard/pos', icon: <FiCreditCard className="w-5 h-5" />, permission: 'POS' },
         { name: 'DTF Printing', path: '/dashboard/pos/dtf', icon: <Printer className="w-5 h-5" />, permission: 'POS' },
         { name: 'Sales', path: '/dashboard/sales', icon: <PkrIcon className="w-5 h-5" />, permission: 'Sales' },
-        { name: 'Products', path: '/dashboard/products', icon: <FiPackage className="w-5 h-5" />, permission: 'Products' },
         { name: 'Expenses', path: '/dashboard/expenses', icon: <FiFileText className="w-5 h-5" />, permission: 'Expenses' },
       ]
     },
